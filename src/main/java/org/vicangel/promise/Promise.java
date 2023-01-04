@@ -3,7 +3,6 @@ package org.vicangel.promise;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.vicangel.promise.ValueOrError.Error;
 import org.vicangel.promise.ValueOrError.Value;
 
 import static org.vicangel.promise.Promise.Status.FULFILLED;
@@ -44,7 +43,7 @@ import static org.vicangel.promise.Promise.Status.REJECTED;
 public class Promise<V> {
 
   private volatile Status status = PENDING;
-  private ValueOrError<?> valueOrError = Value.of(null);
+  private ValueOrError<?> valueOrError;
 
   public enum Status {
     PENDING,
@@ -55,38 +54,68 @@ public class Promise<V> {
   // No instance fields are defined, perhaps you should add some!
 
   public Promise(PromiseExecutor<V> executor) {
+//    Thread newThread = new Thread(() -> executor.execute(this::resolve, this::reject));
+//    newThread.start();
     executor.execute(this::resolve, this::reject);
   }
 
+  private Promise(final V value, final Status status) {
+    this.valueOrError = Value.of(value);
+    this.status = status;
+  }
+
   public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+    if (this.status != FULFILLED) {
+      throw new IllegalStateException("On then, status should not be other than PENDING, current state: " + this.status);
+    }
+    try {
+      final T value = onResolve.apply((V) this.valueOrError.value());
+      return (Promise<ValueOrError<T>>) new Promise<>(value, FULFILLED);
+    } catch (Exception e) {
+      onReject.accept(e);
+      return (Promise<ValueOrError<T>>) new Promise<>((T) this.valueOrError, REJECTED);
+    }
   }
 
   public <T> Promise<T> then(Function<V, T> onResolve) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+    if (this.status != FULFILLED) {
+      throw new IllegalStateException("On then, status should not be other than PENDING, current state: " + this.status);
+    } else if (valueOrError == null) {
+      this.status = PENDING;
+      return resolve(null);
+    }
+    this.status = PENDING;
+    return resolve(onResolve.apply((V) this.valueOrError.value()));
   }
 
-  // catch is a reserved word in Java.
+  /**
+   * @apiNote catch is a reserved word in Java.
+   */
   public Promise<Throwable> catchError(Consumer<Throwable> onReject) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+    onReject.accept(this.valueOrError.error());
+    return reject(this.valueOrError.error());
   }
 
   // finally is a reserved word in Java.
   public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onSettle) {
-    onSettle.accept((ValueOrError<T>) valueOrError);
+    onSettle.accept((ValueOrError<T>) valueOrError.value());
     return (Promise<ValueOrError<T>>) this;
   }
 
   public <T> Promise<T> resolve(T value) {
-    valueOrError = Value.of(value);
-    status = FULFILLED;
-    return (Promise<T>) this;
+    if (value instanceof Throwable) {
+      return (Promise<T>) reject((Throwable) value);
+    } else if (this.status != PENDING) {
+      throw new IllegalStateException("On resolve status should not be other than PENDING, current state: " + this.status);
+    }
+    return new Promise<>(value, FULFILLED);
   }
 
   public Promise<Throwable> reject(Throwable error) {
-    valueOrError = Error.of(error);
-    status = REJECTED;
-    return (Promise<Throwable>) this;
+    if (this.status != PENDING) {
+      throw new IllegalStateException("On reject status should not be other than PENDING, current state: " + this.status);
+    }
+    return new Promise<>(error, REJECTED);
   }
 
   public static <T> Promise<T> race(Iterable<Promise<?>> promises) {
