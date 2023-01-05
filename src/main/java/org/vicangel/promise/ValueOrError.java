@@ -61,8 +61,11 @@ public interface ValueOrError<V> {
 
   class Factory {
 
+    private Factory() {
+    }
+
     public static <T> ValueOrError<T> ofValue(T t) {
-      return new ValueOrError<T>() {
+      return new ValueOrError<>() {
         @Override
         public T value() {
           return t;

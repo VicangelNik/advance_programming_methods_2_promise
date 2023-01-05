@@ -1,7 +1,11 @@
 package org.vicangel.promise;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.vicangel.promise.ValueOrError.Value;
 
@@ -42,8 +46,10 @@ import static org.vicangel.promise.Promise.Status.REJECTED;
  */
 public class Promise<V> {
 
+  private static final Logger LOGGER = Logger.getLogger(Promise.class.getName());
+  private final Object lock;
   private volatile Status status = PENDING;
-  private ValueOrError<?> valueOrError;
+  private ValueOrError<V> valueOrError;
 
   public enum Status {
     PENDING,
@@ -54,38 +60,18 @@ public class Promise<V> {
   // No instance fields are defined, perhaps you should add some!
 
   public Promise(PromiseExecutor<V> executor) {
-//    Thread newThread = new Thread(() -> executor.execute(this::resolve, this::reject));
-//    newThread.start();
+    lock = new Object();
     executor.execute(this::resolve, this::reject);
   }
 
-  private Promise(final V value, final Status status) {
-    this.valueOrError = Value.of(value);
-    this.status = status;
-  }
-
   public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) {
-    if (this.status != FULFILLED) {
-      throw new IllegalStateException("On then, status should not be other than PENDING, current state: " + this.status);
-    }
-    try {
-      final T value = onResolve.apply((V) this.valueOrError.value());
-      return (Promise<ValueOrError<T>>) new Promise<>(value, FULFILLED);
-    } catch (Exception e) {
-      onReject.accept(e);
-      return (Promise<ValueOrError<T>>) new Promise<>((T) this.valueOrError, REJECTED);
-    }
+    new TransformAction<>(this, onResolve, onReject).run();
+    return (Promise<ValueOrError<T>>) this;
   }
 
   public <T> Promise<T> then(Function<V, T> onResolve) {
-    if (this.status != FULFILLED) {
-      throw new IllegalStateException("On then, status should not be other than PENDING, current state: " + this.status);
-    } else if (valueOrError == null) {
-      this.status = PENDING;
-      return resolve(null);
-    }
-    this.status = PENDING;
-    return resolve(onResolve.apply((V) this.valueOrError.value()));
+    new TransformAction<>(this, onResolve).run();
+    return (Promise<T>) this;
   }
 
   /**
@@ -96,26 +82,32 @@ public class Promise<V> {
     return reject(this.valueOrError.error());
   }
 
-  // finally is a reserved word in Java.
+  /**
+   * @apiNote finally is a reserved word in Java.
+   */
   public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onSettle) {
-    onSettle.accept((ValueOrError<T>) valueOrError.value());
+    //  new ConsumeAction(this, (Consumer<T>) onSettle).run();
+    onSettle.accept((ValueOrError<T>) this.valueOrError);
     return (Promise<ValueOrError<T>>) this;
   }
 
   public <T> Promise<T> resolve(T value) {
-    if (value instanceof Throwable) {
-      return (Promise<T>) reject((Throwable) value);
-    } else if (this.status != PENDING) {
-      throw new IllegalStateException("On resolve status should not be other than PENDING, current state: " + this.status);
+    this.valueOrError = (ValueOrError<V>) Value.of(value);//(ValueOrError<V>) ValueOrError.Factory.ofValue(value);
+    this.status = FULFILLED;
+    synchronized (lock) {
+      lock.notifyAll();
     }
-    return new Promise<>(value, FULFILLED);
+    LOGGER.log(Level.INFO, "Promise ran with value: {0}", value);
+    return (Promise<T>) this;
   }
 
   public Promise<Throwable> reject(Throwable error) {
-    if (this.status != PENDING) {
-      throw new IllegalStateException("On reject status should not be other than PENDING, current state: " + this.status);
+    this.valueOrError = ValueOrError.Error.of(error);
+    this.status = REJECTED;
+    synchronized (lock) {
+      lock.notifyAll();
     }
-    return new Promise<>(error, REJECTED);
+    return (Promise<Throwable>) this;
   }
 
   public static <T> Promise<T> race(Iterable<Promise<?>> promises) {
@@ -132,5 +124,72 @@ public class Promise<V> {
 
   public static <T> Promise<T> allSettled(Iterable<Promise<?>> promises) {
     throw new UnsupportedOperationException("IMPLEMENT ME");
+  }
+
+  public V get() throws ExecutionException {
+    synchronized (lock) {
+      while (this.status == PENDING) {
+        try {
+          lock.wait();
+        } catch (InterruptedException e) {
+          LOGGER.warning(e.getMessage());
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+
+    if (this.status == FULFILLED) {
+      return this.valueOrError.value();
+    }
+    throw new ExecutionException(this.valueOrError.error());
+  }
+
+  public V get(long timeout, TimeUnit unit) throws ExecutionException {
+    synchronized (lock) {
+      while (this.status == PENDING) {
+        try {
+          lock.wait(unit.toMillis(timeout));
+        } catch (InterruptedException e) {
+          LOGGER.warning(e.getMessage());
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+
+    if (this.status == FULFILLED) {
+      return this.valueOrError.value();
+    }
+    throw new ExecutionException(this.valueOrError.error());
+  }
+
+  private class TransformAction<T> implements Runnable {
+
+    private final Promise<V> src;
+    private final Function<V, T> func;
+    private Consumer<Throwable> onReject;
+
+    private TransformAction(Promise<V> src, Function<V, T> func) {
+      this.src = src;
+      this.func = func;
+    }
+
+    private TransformAction(Promise<V> src, Function<V, T> func, Consumer<Throwable> onReject) {
+      this.src = src;
+      this.func = func;
+      this.onReject = onReject;
+    }
+
+    @Override
+    public void run() {
+      try {
+        src.resolve(func.apply(src.get()));
+      } catch (Exception exception) {
+        if (onReject != null) {
+          src.catchError(onReject);
+        } else {
+          src.reject(exception);
+        }
+      }
+    }
   }
 }
