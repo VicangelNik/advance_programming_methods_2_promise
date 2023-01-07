@@ -106,22 +106,27 @@ public class Promise<V> extends PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then">...</a>
    */
   public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) {
-    new TransformAction<>(this, onResolve, onReject).run();
-//    this.status = PENDING;
-//    synchronized (lock) {
-//      lock.notifyAll();
-//    }
-    LOGGER.log(Level.INFO, "then() with 2 arguments is called!!");
+    LOGGER.log(Level.INFO, "then(Function<V, T> onResolve, Consumer<Throwable> onReject) execution");
+    final var transformAction = new PromiseTransformActionThread<>(this, onResolve, onReject);
+    // this.status = PENDING;
+    final var thread = new Thread(transformAction);
+    thread.start();
+    synchronized (lock) {
+      lock.notifyAll();
+    }
     return (Promise<ValueOrError<T>>) this;
   }
 
   public <T> Promise<T> then(Function<V, T> onResolve) {
-    new TransformAction<>(this, onResolve).run();
-    this.status = PENDING;
+    LOGGER.log(Level.INFO, "then(Function<V, T> onResolve) execution");
+    final var transformAction = new PromiseTransformActionThread<>(this, onResolve);
+    final var thread = new Thread(transformAction);
+    thread.start();
     synchronized (lock) {
       lock.notifyAll();
     }
-    LOGGER.log(Level.INFO, "then() with 1 argument is called!");
+
+    // this.status = PENDING;
     return (Promise<T>) this;
   }
 
@@ -155,17 +160,71 @@ public class Promise<V> extends PromiseSupport {
       lock.notifyAll();
     }
     final Function<V, T> catchErrorFunction = onRej -> (T) this;
-    LOGGER.log(Level.INFO, "catchError ran");
+    LOGGER.log(Level.INFO, "catchError execution");
     return (Promise<Throwable>) then(catchErrorFunction);
   }
 
   /**
-   * @apiNote finally is a reserved word in Java.
+   * The finally() method of a Promise object schedules a function to be called when the promise is settled
+   * (either fulfilled or rejected). It immediately returns an equivalent Promise object, allowing you to chain calls to
+   * other promise methods.
+   * <p>
+   * This lets you avoid duplicating code in both the promise's then() and catch() handlers.
+   *
+   * @param onFinally A Function called when the Promise is settled. This handler receives no parameters.
+   *
+   * @return Returns an equivalent Promise. If the handler throws an error or returns a rejected promise,
+   * the promise returned by finally() will be rejected with that value instead. Otherwise, the return value
+   * of the handler does not affect the state of the original promise.
+   *
+   * @implNote finally is a reserved word in Java.
+   * @apiNote The finally() method can be useful if you want to do some processing or cleanup once the promise is settled,
+   * regardless of its outcome.
+   * <p>
+   * The finally() method is very similar to calling then(onFinally, onFinally). However, there are a couple of differences:
+   * <p>
+   * When creating a function inline, you can pass it once, instead of being forced to either declare it twice, or create
+   * a variable for it.
+   * The onFinally callback does not receive any argument. This use case is for precisely when you do not care about the
+   * rejection reason or the fulfillment value, and so there's no need to provide it.
+   * A finally() call is usually transparent and does not change the eventual state of the original promise. So for example:
+   * Unlike Promise.resolve(2).then(() => 77, () => {}), which returns a promise eventually fulfilled with the value 77,
+   * Promise.resolve(2).finally(() => 77) returns a promise eventually fulfilled with the value 2.
+   * Similarly, unlike Promise.reject(3).then(() => {}, () => 88), which returns a promise eventually fulfilled with the
+   * value 88, Promise.reject(3).finally(() => 88) returns a promise eventually rejected with the reason 3.
+   * <p>
+   * Note: A throw (or returning a rejected promise) in the finally() callback still rejects the returned promise.
+   * For example, both Promise.reject(3).finally(() => { throw 99; })
+   * and Promise.reject(3).finally(() => Promise.reject(99)) reject the returned promise with the reason 99.
+   * <p>
+   * Like catch(), finally() internally calls the then method on the object upon which it was called.
+   * If onFinally is not a function, then() is called with onFinally as both arguments — which,
+   * for Promise.prototype.then(), means that no useful handler is attached. Otherwise, then() is called with two
+   * internally created functions, which behave like the following:
+   * promise.then(
+   * (value) => Promise.resolve(onFinally()).then(() => value),
+   * (reason) =>
+   * Promise.resolve(onFinally()).then(() => {
+   * throw reason;
+   * }),
+   * );
+   * <p>
+   * Because finally() calls then(), it supports subclassing. Moreover, notice the Promise.resolve() call above — in reality,
+   * onFinally()'s return value is resolved using the same algorithm as Promise.resolve(),
+   * but the actual constructor used to construct the resolved promise will be the subclass.
+   * finally() gets this constructor through promise.constructor[@@species].
    */
-  public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onSettle) {
-    //  new ConsumeAction(this, (Consumer<T>) onSettle).run();
-    onSettle.accept((ValueOrError<T>) this.valueOrError);
-    return (Promise<ValueOrError<T>>) this;
+  public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onFinally) throws ExecutionException {
+    synchronized (lock) {
+      lock.notifyAll();
+    }
+
+    LOGGER.log(Level.INFO, "andFinally execution");
+    final Function<V, T> catchErrorFunction = onFin -> {
+      onFinally.accept((ValueOrError<T>) this.valueOrError);
+      return (T) this;
+    };
+    return (Promise<ValueOrError<T>>) then(catchErrorFunction);
   }
 
   private <T> void fullFillResolve(T value) {
@@ -177,7 +236,7 @@ public class Promise<V> extends PromiseSupport {
     LOGGER.log(Level.INFO, "fullFillResolve ran with value: {0}", value);
   }
 
-  public void fullFillReject(Throwable reason) {
+  private void fullFillReject(Throwable reason) {
     this.valueOrError = ValueOrError.Error.of(reason);
     this.status = REJECTED;
     synchronized (lock) {
@@ -264,36 +323,5 @@ public class Promise<V> extends PromiseSupport {
       return this.valueOrError.value();
     }
     throw new ExecutionException(this.valueOrError.error());
-  }
-
-  private class TransformAction<T> implements Runnable {
-
-    private final Promise<V> src;
-    private final Function<V, T> func;
-    private Consumer<Throwable> onReject;
-
-    private TransformAction(Promise<V> src, Function<V, T> func) {
-      this.src = src;
-      this.func = func;
-    }
-
-    private TransformAction(Promise<V> src, Function<V, T> func, Consumer<Throwable> onReject) {
-      this.src = src;
-      this.func = func;
-      this.onReject = onReject;
-    }
-
-    @Override
-    public void run() {
-      try {
-        PromiseSupport.resolve(func.apply(src.get()));
-      } catch (Exception exception) {
-        if (onReject != null) {
-          src.catchError(onReject);
-        } else {
-          PromiseSupport.reject(exception);
-        }
-      }
-    }
   }
 }
