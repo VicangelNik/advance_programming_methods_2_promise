@@ -41,7 +41,7 @@ import static org.vicangel.promise.Status.REJECTED;
  * A helpful guide to help you understand Promises is available here:
  * @see <a href="https://javascript.info/async">...</a>
  */
-public class Promise<V> extends PromiseSupport {
+public class Promise<V> extends PromiseSupport implements Thenable<V> {
 
   private static final Logger LOGGER = Logger.getLogger(Promise.class.getName());
   private final Object lock;
