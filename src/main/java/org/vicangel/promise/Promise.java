@@ -14,10 +14,9 @@ import static org.vicangel.promise.Status.REJECTED;
 /**
  * @author Nikiforos Xylogiannopoulos
  * <p>
- * > "What I cannot create, I do not understand"
- * > Richard Feynman
- * > https://en.wikipedia.org/wiki/Richard_Feynman
- * <p>
+ * "What I cannot create, I do not understand"
+ * Richard Feynman
+ * @implSpec <p>
  * This is an incomplete implementation of the Javascript Promise machinery in Java.
  * You should expand and ultimately complete it according to the following:
  * <p>
@@ -36,11 +35,11 @@ import static org.vicangel.promise.Status.REJECTED;
  * (5) I may have missed something from the spec, so please report any issues
  * in the course's e-class.
  * <p>
- * The Javascript Promise reference is here:
- * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
+ * @see <a href="https://en.wikipedia.org/wiki/Richard_Feynman">...</a>
+ * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">...</a>
  * <p>
  * A helpful guide to help you understand Promises is available here:
- * https://javascript.info/async
+ * @see <a href="https://javascript.info/async">...</a>
  */
 public class Promise<V> extends PromiseSupport {
 
@@ -52,6 +51,7 @@ public class Promise<V> extends PromiseSupport {
   // No instance fields are defined, perhaps you should add some!
 
   protected Promise(PromiseExecutor<V> executor) {
+    super();
     lock = new Object();
     executor.execute(this::fullFillResolve, this::fullFillReject);
   }
@@ -105,23 +105,21 @@ public class Promise<V> extends PromiseSupport {
    * the @@species property.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then">...</a>
    */
-  public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) {
+  public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) { // TODO
     LOGGER.log(Level.INFO, "then(Function<V, T> onResolve, Consumer<Throwable> onReject) execution");
-    final var transformAction = new PromiseTransformActionThread<>(this, onResolve, onReject);
+    final var promiseTransformActionThread = new PromiseTransformActionThread<>(this, onResolve, onReject);
     // this.status = PENDING;
-    final var thread = new Thread(transformAction);
-    thread.start();
+    promiseTransformActionThread.start();
     synchronized (lock) {
       lock.notifyAll();
     }
     return (Promise<ValueOrError<T>>) this;
   }
 
-  public <T> Promise<T> then(Function<V, T> onResolve) {
+  public <T> Promise<T> then(Function<V, T> onResolve) { // TODO
     LOGGER.log(Level.INFO, "then(Function<V, T> onResolve) execution");
-    final var transformAction = new PromiseTransformActionThread<>(this, onResolve);
-    final var thread = new Thread(transformAction);
-    thread.start();
+    final var promiseTransformActionThread = new PromiseTransformActionThread<>(this, onResolve);
+    promiseTransformActionThread.start();
     synchronized (lock) {
       lock.notifyAll();
     }
@@ -154,7 +152,7 @@ public class Promise<V> extends PromiseSupport {
    * The value of that call is directly returned. This is observable if you wrap the methods.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch">...</a>
    */
-  public <T> Promise<Throwable> catchError(final Consumer<Throwable> onRejected) {
+  public <T> Promise<Throwable> catchError(final Consumer<Throwable> onRejected) { // TODO
     onRejected.accept(this.valueOrError.error());
     synchronized (lock) {
       lock.notifyAll();
@@ -214,7 +212,7 @@ public class Promise<V> extends PromiseSupport {
    * but the actual constructor used to construct the resolved promise will be the subclass.
    * finally() gets this constructor through promise.constructor[@@species].
    */
-  public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onFinally) throws ExecutionException {
+  public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onFinally) {
     synchronized (lock) {
       lock.notifyAll();
     }
@@ -242,51 +240,6 @@ public class Promise<V> extends PromiseSupport {
     synchronized (lock) {
       lock.notifyAll();
     }
-  }
-
-  public static <T> Promise<T> race(Iterable<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
-  }
-
-  public static <T> Promise<T> any(Iterable<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
-  }
-
-  /**
-   * The Promise.all() static method takes an iterable of promises as input and returns a single Promise.
-   * This returned promise fulfills when all the input's promises fulfill (including when an empty iterable is passed),
-   * with an array of the fulfillment values.
-   * It rejects when any of the input's promises rejects, with this first rejection reason.
-   * <p>
-   * The Promise.all() method is one of the promise concurrency methods. It can be useful for aggregating the results of
-   * multiple promises. It is typically used when there are multiple related asynchronous tasks that the overall code
-   * relies on to work successfully — all of whom we want to fulfill before the code execution continues.
-   * <p>
-   * Promise.all() will reject immediately upon any of the input promises rejecting. In comparison, the promise returned
-   * by Promise.allSettled() will wait for all input promises to complete, regardless of whether one rejects.
-   * Use allSettled() if you need the final result of every promise in the input iterable.
-   *
-   * @param promises
-   * @param <T>
-   *
-   * @return
-   *
-   * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all">...</a>
-   */
-  public static <T> Promise<T> all(Iterable<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
-//    Status allPromiisesStatus = PENDING;
-//    final Iterator<Promise<?>> promiseIterator = promises.iterator();
-//    while (allPromiisesStatus == PENDING) {
-//      if (promiseIterator.hasNext()) {
-//        promiseIterator.next().
-//      }
-//    }
-//    promises.forEach();
-  }
-
-  public static <T> Promise<T> allSettled(Iterable<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
   }
 
   public V get() throws ExecutionException {
