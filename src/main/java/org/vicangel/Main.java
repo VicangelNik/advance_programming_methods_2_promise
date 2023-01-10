@@ -31,10 +31,12 @@ public class Main {
     // Promise<?> promise = PromiseSupport.resolve("Resolved").then(String::length).then(length-> length + 10);
 
     // Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7"); // TODO
+    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7")
+      .then(x-> {System.out.println(x); return x;});
 
     //  Promise<?> promise = PromiseSupport.resolve("Resolved").andFinally(x-> System.out.println("Experiment completed"));
 
-    testPromiseSupportAll();
+    // testPromiseSupportAll();
 
     //promise.resolve("Resolved").then(String::length);
     // promise.resolve("Resolved").then(String::length).andFinally(valueOrError -> System.out.println(10+ (Integer)valueOrError.value()));
@@ -42,7 +44,7 @@ public class Main {
 //    promise.resolve("Resolved").then(str -> str.length() / 0, x -> {
 //      throw new RuntimeException("Error exception from then");
 //    }).andFinally(valueOrError -> System.out.println(10 + (Integer) valueOrError.value()));
-    // System.out.println(promise.get());
+     System.out.println(promise.get());
     // promise.reject(new RuntimeException());
     // promise.resolve(new RuntimeException());
     // promise.resolve(null);

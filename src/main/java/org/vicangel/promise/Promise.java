@@ -50,10 +50,14 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
 
   // No instance fields are defined, perhaps you should add some!
 
-  protected Promise(PromiseExecutor<V> executor) {
+  protected Promise(final PromiseExecutor<V> executor) {
     super();
     lock = new Object();
     executor.execute(this::fullFillResolve, this::fullFillReject);
+  }
+
+  private Promise(final Object lock) {
+    this.lock = lock;
   }
 
   /**
@@ -114,14 +118,13 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
     }
   }
 
-  public <T> Promise<T> then(Function<V, T> onResolve) { // TODO
+  public <T> Promise<T> then(Function<V, T> onResolve) {
     synchronized (lock) {
-      LOGGER.log(Level.INFO, "then(Function<V, T> onResolve) execution");
-      this.status = PENDING;
-      new PromiseTransformActionThread<>(this, onResolve);
-      lock.notifyAll();
+      final Promise<T> dest = new Promise<>(lock);
+      new PromiseTransformActionThread<>(this, dest, onResolve);
       LOGGER.log(Level.INFO, () -> "then(Function<V, T> onResolve) called with thread name " + Thread.currentThread().getName());
-      return (Promise<T>) this;
+      lock.notifyAll();
+      return dest;
     }
   }
 
@@ -222,7 +225,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
     return (Promise<ValueOrError<T>>) then(catchErrorFunction);
   }
 
-  private <T> void fullFillResolve(T value) {
+  protected <T> void fullFillResolve(T value) {
     synchronized (lock) {
       this.valueOrError = (ValueOrError<V>) ValueOrError.Value.of(value);
       this.status = FULFILLED;
@@ -232,7 +235,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
     }
   }
 
-  private void fullFillReject(Throwable reason) {
+  protected void fullFillReject(Throwable reason) {
     synchronized (lock) {
       this.valueOrError = ValueOrError.Error.of(reason);
       this.status = REJECTED;
