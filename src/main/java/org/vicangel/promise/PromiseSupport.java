@@ -53,16 +53,17 @@ public abstract class PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve">...</a>
    */
   public static <T> Promise<T> resolve(final T value) {
-    LOGGER.log(Level.INFO, "Promise ran with value: {0}", value);
+    LOGGER.log(Level.INFO, "static resolve called with value: {0}", value);
     if (value instanceof Promise) {
+      LOGGER.log(Level.INFO, "static resolve called, immediately return promise");
       return (Promise<T>) value;
     }
     return new Promise<>((res, rej) -> {
       try {
-        LOGGER.info("Resolved Accept default case entered");
+        LOGGER.log(Level.INFO, "static resolve called - ACCEPT value");
         res.accept(value);
       } catch (Exception throwable) {
-        LOGGER.info("Resolved exception default case entered");
+        LOGGER.log(Level.INFO, "static resolve called - REJECT value");
         rej.accept(throwable);
       }
     });

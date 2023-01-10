@@ -17,6 +17,7 @@ public class PromiseTransformActionThread<V, T> extends Thread {
   public PromiseTransformActionThread(Promise<V> src, Function<V, T> func) {
     this.src = src;
     this.func = func;
+    this.start();
   }
 
   public PromiseTransformActionThread(Promise<V> src, Function<V, T> func, Consumer<Throwable> onReject) {

@@ -106,26 +106,23 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then">...</a>
    */
   public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) { // TODO
-    LOGGER.log(Level.INFO, "then(Function<V, T> onResolve, Consumer<Throwable> onReject) execution");
-    final var promiseTransformActionThread = new PromiseTransformActionThread<>(this, onResolve, onReject);
-    // this.status = PENDING;
-    promiseTransformActionThread.start();
     synchronized (lock) {
+      LOGGER.log(Level.INFO, "then(Function<V, T> onResolve, Consumer<Throwable> onReject) execution");
+      new PromiseTransformActionThread<>(this, onResolve, onReject);
       lock.notifyAll();
+      return (Promise<ValueOrError<T>>) this;
     }
-    return (Promise<ValueOrError<T>>) this;
   }
 
   public <T> Promise<T> then(Function<V, T> onResolve) { // TODO
-    LOGGER.log(Level.INFO, "then(Function<V, T> onResolve) execution");
-    final var promiseTransformActionThread = new PromiseTransformActionThread<>(this, onResolve);
-    promiseTransformActionThread.start();
     synchronized (lock) {
+      LOGGER.log(Level.INFO, "then(Function<V, T> onResolve) execution");
+      this.status = PENDING;
+      new PromiseTransformActionThread<>(this, onResolve);
       lock.notifyAll();
+      LOGGER.log(Level.INFO, () -> "then(Function<V, T> onResolve) called with thread name " + Thread.currentThread().getName());
+      return (Promise<T>) this;
     }
-
-    // this.status = PENDING;
-    return (Promise<T>) this;
   }
 
   /**
@@ -226,18 +223,21 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
   }
 
   private <T> void fullFillResolve(T value) {
-    this.valueOrError = (ValueOrError<V>) ValueOrError.Value.of(value);
-    this.status = FULFILLED;
     synchronized (lock) {
+      this.valueOrError = (ValueOrError<V>) ValueOrError.Value.of(value);
+      this.status = FULFILLED;
+      LOGGER.log(Level.INFO, () -> "fullFillResolve called with value: " + value + " and thread name "
+                                   + Thread.currentThread().getName());
       lock.notifyAll();
     }
-    LOGGER.log(Level.INFO, "fullFillResolve ran with value: {0}", value);
   }
 
   private void fullFillReject(Throwable reason) {
-    this.valueOrError = ValueOrError.Error.of(reason);
-    this.status = REJECTED;
     synchronized (lock) {
+      this.valueOrError = ValueOrError.Error.of(reason);
+      this.status = REJECTED;
+      LOGGER.log(Level.INFO, () -> "fullFillReject called with value: " + reason + " and thread name "
+                                   + Thread.currentThread().getName());
       lock.notifyAll();
     }
   }
