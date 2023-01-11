@@ -11,7 +11,7 @@ import java.util.function.Function;
  */
 public interface Thenable<V> {
 
-  <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject);
+  <T> Promise<T> then(Function<V, T> onResolve, Consumer<Throwable> onReject);
 
   <T> Promise<T> then(Function<V, T> onResolve);
 }

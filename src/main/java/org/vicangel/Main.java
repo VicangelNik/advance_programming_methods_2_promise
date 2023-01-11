@@ -1,6 +1,5 @@
 package org.vicangel;
 
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
@@ -33,8 +32,11 @@ public class Main {
 //    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7")
 //      .then(x-> {System.out.println(x); return x;}); // DONE
 
-    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3", x-> new RuntimeException("error"))
-      .then(x-> {System.out.println(x.value()); return x.value();});
+    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x) -> "Resolved3", x -> new RuntimeException("error"))
+      .then(x -> {
+        System.out.println(x);
+        return x;
+      });
 
     //  Promise<?> promise = PromiseSupport.resolve("Resolved").andFinally(x-> System.out.println("Experiment completed"));
 
@@ -46,7 +48,7 @@ public class Main {
 //    promise.resolve("Resolved").then(str -> str.length() / 0, x -> {
 //      throw new RuntimeException("Error exception from then");
 //    }).andFinally(valueOrError -> System.out.println(10 + (Integer) valueOrError.value()));
-     System.out.println(promise.get());
+    System.out.println(promise.get());
     // promise.reject(new RuntimeException());
     // promise.resolve(new RuntimeException());
     // promise.resolve(null);
@@ -61,7 +63,7 @@ public class Main {
     Promise<Integer> promise1 = PromiseSupport.resolve(10);
     Promise<Integer> promise2 = PromiseSupport.resolve(20);
     Promise<Integer> promise3 = PromiseSupport.resolve(100);
-    Promise<Integer> promiseResult = PromiseSupport.all(List.of(promise, promise1, promise2, promise3));
-    System.out.println(promiseResult.get());
+    // Promise<Integer> promiseResult = PromiseSupport.all(List.of(promise, promise1, promise2, promise3));
+    //  System.out.println(promiseResult.get());
   }
 }

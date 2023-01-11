@@ -3,17 +3,12 @@ package org.vicangel.promise;
 /**
  * @author Nikiforos Xylogiannopoulos
  */
-public interface ValueOrError<V> {
-
-  default boolean hasError() {
-    return error() == null;
-  }
-
+public interface ValueOrError<V>  {
+  boolean hasError();
   V value();
-
   Throwable error();
 
-  class Value<V> implements ValueOrError<V> {
+  static class Value<V> implements ValueOrError<V> {
 
     private final V value;
 
@@ -31,12 +26,23 @@ public interface ValueOrError<V> {
       return null;
     }
 
-    static <T> ValueOrError<T> of(T t) {
-      return new Value<>(t);
+    @Override
+    public boolean hasError() {
+      return false;
     }
+
+    @Override
+    public String toString() {
+      return "Value{" +
+             "value=" + value +
+             '}';
+    }
+
+    static <T> ValueOrError<T> of(T t) { return new Value<>(t);}
+
   }
 
-  class Error<V> implements ValueOrError<V> {
+  static class Error<V> implements ValueOrError<V> {
 
     private final Throwable throwable;
 
@@ -54,43 +60,19 @@ public interface ValueOrError<V> {
       return throwable;
     }
 
-    static <T> ValueOrError<T> of(Throwable t) {
-      return new Error<>(t);
-    }
-  }
-
-  class Factory {
-
-    private Factory() {
+    @Override
+    public boolean hasError() {
+      return true;
     }
 
-    public static <T> ValueOrError<T> ofValue(T t) {
-      return new ValueOrError<>() {
-        @Override
-        public T value() {
-          return t;
-        }
-
-        @Override
-        public Throwable error() {
-          return null;
-        }
-      };
+    @Override
+    public String toString() {
+      return "Error{" +
+             "throwable=" + throwable +
+             '}';
     }
 
-    public static ValueOrError<Void> ofError(Throwable t) {
-      return new ValueOrError<>() {
-        @Override
-        public Void value() {
-          return null;
-        }
-
-        @Override
-        public Throwable error() {
-          return t;
-        }
-      };
-    }
+    static <T> ValueOrError<T> of(Throwable t) { return new Error<>(t);}
   }
 }
 

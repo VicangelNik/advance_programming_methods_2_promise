@@ -1,6 +1,6 @@
 package org.vicangel.promise;
 
-import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -88,7 +88,7 @@ public abstract class PromiseSupport {
    * Unlike Promise.resolve(), Promise.reject() always wraps reason in a new Promise object, even when reason is already a Promise.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/reject">...</a>
    */
-  public static Promise<Throwable> reject(final Throwable reason) {
+  public static Promise<Void> reject(final Throwable reason) {
     return new Promise<>((res, rej) -> rej.accept(reason));
   }
 
@@ -118,16 +118,17 @@ public abstract class PromiseSupport {
    * Use allSettled() if you need the final result of every promise in the input iterable.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all">...</a>
    */
-  public static <T> Promise<T> all(Iterable<Promise<?>> promises) { // TODO
-    Promise<T> promiseResult = PromiseSupport.resolve(null);
-    // throw new UnsupportedOperationException("IMPLEMENT ME");
-//    Status allPromiisesStatus = PENDING;
-
-    final Iterator<Promise<?>> promiseIterator = promises.iterator();
-    while (promiseIterator.hasNext()) {
-      promiseResult.then((promise) -> promiseIterator.next());
-    }
-    return (Promise<T>) promiseResult;
+  public static Promise<List<?>> all(Iterable<Promise<?>> promises) { // TODO
+//    Promise<T> promiseResult = PromiseSupport.resolve(null);
+//    // throw new UnsupportedOperationException("IMPLEMENT ME");
+////    Status allPromiisesStatus = PENDING;
+//
+//    final Iterator<Promise<?>> promiseIterator = promises.iterator();
+//    while (promiseIterator.hasNext()) {
+//      promiseResult.then((promise) -> promiseIterator.next());
+//    }
+//    return (Promise<T>) promiseResult;
+    throw new UnsupportedOperationException("IMPLEMENT ME");
   }
 
   /**
@@ -149,7 +150,7 @@ public abstract class PromiseSupport {
    * settle to the first of these values found in the iterable.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race">...</a>
    */
-  public static <T> Promise<T> race(Iterable<Promise<?>> promises) { // TODO
+  public static Promise<ValueOrError<?>> race(List<Promise<?>> promises) {
     throw new UnsupportedOperationException("IMPLEMENT ME");
   }
 
@@ -188,7 +189,7 @@ public abstract class PromiseSupport {
    * This method ignores all rejected promises up until the first promise that fulfills.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any">...</a>
    */
-  public static <T> Promise<T> any(Iterable<Promise<?>> promises) { // TODO
+  public static Promise<?> any(List<Promise<?>> promises) {
     throw new UnsupportedOperationException("IMPLEMENT ME");
   }
 
@@ -224,7 +225,7 @@ public abstract class PromiseSupport {
    * or if you'd like to immediately reject upon any of them rejecting.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled">...</a>
    */
-  public static <T> Promise<T> allSettled(Iterable<Promise<?>> promises) { // TODO
+  public static Promise<List<ValueOrError<?>>> allSettled(List<Promise<?>> promises) {
     throw new UnsupportedOperationException("IMPLEMENT ME");
   }
 }

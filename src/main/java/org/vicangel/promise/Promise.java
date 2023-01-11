@@ -49,7 +49,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
 
   // No instance fields are defined, perhaps you should add some!
 
-  protected Promise(final PromiseExecutor<V> executor) {
+  public Promise(final PromiseExecutor<V> executor) {
     super();
     lock = new Object();
     executor.execute(this::fullFillResolve, this::fullFillReject);
@@ -108,16 +108,18 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    * the @@species property.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then">...</a>
    */
-  public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) { // TODO
+  @Override
+  public <T> Promise<T> then(Function<V, T> onResolve, Consumer<Throwable> onReject) { // TODO
     synchronized (lock) {
       final Promise<T> dest = new Promise<>(lock);
       new PromiseTransformActionThread<>(this, dest, onResolve, onReject);
       LOGGER.log(Level.INFO, () -> "then(Function<V, T> onResolve, Consumer<Throwable> onReject) called with thread name " + Thread.currentThread().getName());
       lock.notifyAll();
-      return (Promise<ValueOrError<T>>) dest;
+      return dest;
     }
   }
 
+  @Override
   public <T> Promise<T> then(Function<V, T> onResolve) {
     synchronized (lock) {
       final Promise<T> dest = new Promise<>(lock);
@@ -152,14 +154,14 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    * The value of that call is directly returned. This is observable if you wrap the methods.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch">...</a>
    */
-  public <T> Promise<Throwable> catchError(final Consumer<Throwable> onRejected) { // TODO
+  public <T> Promise<?> catchError(final Consumer<Throwable> onRejected) { // TODO
     onRejected.accept(this.valueOrError.error());
     synchronized (lock) {
       lock.notifyAll();
     }
     final Function<V, T> catchErrorFunction = onRej -> (T) this;
     LOGGER.log(Level.INFO, "catchError execution");
-    return (Promise<Throwable>) then(catchErrorFunction);
+    return then(catchErrorFunction);
   }
 
   /**
@@ -212,7 +214,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    * but the actual constructor used to construct the resolved promise will be the subclass.
    * finally() gets this constructor through promise.constructor[@@species].
    */
-  public <T> Promise<ValueOrError<T>> andFinally(Consumer<ValueOrError<T>> onFinally) {
+  public <T> Promise<V> andFinally(Consumer<ValueOrError<T>> onFinally) {
     synchronized (lock) {
       lock.notifyAll();
     }
@@ -222,7 +224,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
       onFinally.accept((ValueOrError<T>) this.valueOrError);
       return (T) this;
     };
-    return (Promise<ValueOrError<T>>) then(catchErrorFunction);
+    return (Promise<V>) then(catchErrorFunction);
   }
 
   protected <T> void fullFillResolve(T value) {
