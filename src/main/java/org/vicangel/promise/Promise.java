@@ -1,7 +1,6 @@
 package org.vicangel.promise;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -111,10 +110,11 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    */
   public <T> Promise<ValueOrError<T>> then(Function<V, T> onResolve, Consumer<Throwable> onReject) { // TODO
     synchronized (lock) {
-      LOGGER.log(Level.INFO, "then(Function<V, T> onResolve, Consumer<Throwable> onReject) execution");
-      new PromiseTransformActionThread<>(this, onResolve, onReject);
+      final Promise<T> dest = new Promise<>(lock);
+      new PromiseTransformActionThread<>(this, dest, onResolve, onReject);
+      LOGGER.log(Level.INFO, () -> "then(Function<V, T> onResolve, Consumer<Throwable> onReject) called with thread name " + Thread.currentThread().getName());
       lock.notifyAll();
-      return (Promise<ValueOrError<T>>) this;
+      return (Promise<ValueOrError<T>>) dest;
     }
   }
 
@@ -250,24 +250,6 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
       while (this.status == PENDING) {
         try {
           lock.wait();
-        } catch (InterruptedException e) {
-          LOGGER.warning(e.getMessage());
-          Thread.currentThread().interrupt();
-        }
-      }
-    }
-
-    if (this.status == FULFILLED) {
-      return this.valueOrError.value();
-    }
-    throw new ExecutionException(this.valueOrError.error());
-  }
-
-  public V get(long timeout, TimeUnit unit) throws ExecutionException {
-    synchronized (lock) {
-      while (this.status == PENDING) {
-        try {
-          lock.wait(unit.toMillis(timeout));
         } catch (InterruptedException e) {
           LOGGER.warning(e.getMessage());
           Thread.currentThread().interrupt();

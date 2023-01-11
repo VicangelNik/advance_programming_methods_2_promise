@@ -30,9 +30,11 @@ public class Main {
 
     // Promise<?> promise = PromiseSupport.resolve("Resolved").then(String::length).then(length-> length + 10);
 
-    // Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7"); // TODO
-    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7")
-      .then(x-> {System.out.println(x); return x;});
+//    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7")
+//      .then(x-> {System.out.println(x); return x;}); // DONE
+
+    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3", x-> new RuntimeException("error"))
+      .then(x-> {System.out.println(x.value()); return x.value();});
 
     //  Promise<?> promise = PromiseSupport.resolve("Resolved").andFinally(x-> System.out.println("Experiment completed"));
 
