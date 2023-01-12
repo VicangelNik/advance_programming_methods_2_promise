@@ -15,7 +15,7 @@ public class Main {
   private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
   private static final PromiseExecutor<Integer> PROMISE_EXECUTOR = (res, rej) -> LOGGER.info("Execution Started");
 
-  public static void main(String[] args) throws ExecutionException {
+  public static void main(String[] args) {
 //    final Consumer<String> resolve = s -> System.out.println("Resolved");
 //    final Consumer<String> reject = s -> System.out.println("Rejected");
 
@@ -24,7 +24,7 @@ public class Main {
     // Promise<String> promise1 = PromiseSupport.resolve("Just the beginning");
     // Promise<Promise<Integer>> promise2 = PromiseSupport.resolve(promise);
 
-    //  Promise<Throwable> throwablePromise = PromiseSupport.reject(new IllegalArgumentException("illegal exception thrown")).catchError(error-> System.out.println(error.getMessage()));
+    // Promise<?> throwablePromise = PromiseSupport.reject(new IllegalArgumentException("illegal exception thrown")).catchError(error-> System.out.println(error.getMessage()));
     //  Promise<?> throwablePromise = PromiseSupport.reject(throwablePromise).catchError(error-> System.out.println(error.getMessage())); it is supposed to be supported by specification, but it is a compilation error
 
     // Promise<?> promise = PromiseSupport.resolve("Resolved").then(String::length).then(length-> length + 10);
@@ -32,11 +32,11 @@ public class Main {
 //    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x)->"Resolved3").then((x)->"Resolved7")
 //      .then(x-> {System.out.println(x); return x;}); // DONE
 
-    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x) -> "Resolved3", x -> new RuntimeException("error"))
-      .then(x -> {
-        System.out.println(x);
-        return x;
-      });
+//    Promise<?> promise = PromiseSupport.resolve("Resolved").then((x) -> "Resolved3", x -> new RuntimeException("error"))
+//      .then(x -> {
+//        System.out.println(x);
+//        return x;
+//      });
 
     //  Promise<?> promise = PromiseSupport.resolve("Resolved").andFinally(x-> System.out.println("Experiment completed"));
 
@@ -45,10 +45,10 @@ public class Main {
     //promise.resolve("Resolved").then(String::length);
     // promise.resolve("Resolved").then(String::length).andFinally(valueOrError -> System.out.println(10+ (Integer)valueOrError.value()));
     // promise.resolve("Resolved").then(String::length, x -> new RuntimeException("Error exception from then")).andFinally(valueOrError -> System.out.println(10 + (Integer) valueOrError.value()));
-//    promise.resolve("Resolved").then(str -> str.length() / 0, x -> {
-//      throw new RuntimeException("Error exception from then");
-//    }).andFinally(valueOrError -> System.out.println(10 + (Integer) valueOrError.value()));
-    System.out.println(promise.get());
+    PromiseSupport.resolve("Resolved").then(str -> str.length() / 0, x -> {
+      throw new RuntimeException("Error exception");
+    }).andFinally(valueOrError -> System.out.println("release resources"));
+    //   System.out.println(promise.get());
     // promise.reject(new RuntimeException());
     // promise.resolve(new RuntimeException());
     // promise.resolve(null);

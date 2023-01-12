@@ -40,7 +40,8 @@ public class PromiseTransformActionThread<V, T> extends Thread {
       dest.fullFillResolve(func.apply(src.get()));
     } catch (Exception exception) {
       if (onReject != null) {
-        src.catchError(onReject);
+        dest.fullFillReject(exception);
+        onReject.accept(exception);
       } else {
         dest.fullFillReject(exception);
       }

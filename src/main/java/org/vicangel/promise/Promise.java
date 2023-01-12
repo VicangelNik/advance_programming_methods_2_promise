@@ -109,7 +109,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then">...</a>
    */
   @Override
-  public <T> Promise<T> then(Function<V, T> onResolve, Consumer<Throwable> onReject) { // TODO
+  public <T> Promise<T> then(Function<V, T> onResolve, Consumer<Throwable> onReject) {
     synchronized (lock) {
       final Promise<T> dest = new Promise<>(lock);
       new PromiseTransformActionThread<>(this, dest, onResolve, onReject);
@@ -154,14 +154,14 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    * The value of that call is directly returned. This is observable if you wrap the methods.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch">...</a>
    */
-  public <T> Promise<?> catchError(final Consumer<Throwable> onRejected) { // TODO
-    onRejected.accept(this.valueOrError.error());
+  public <T> Promise<?> catchError(final Consumer<Throwable> onRejected) {
     synchronized (lock) {
+      onRejected.accept(this.valueOrError.error());
+      final Function<V, T> catchErrorFunction = onRej -> (T) this;
+      LOGGER.log(Level.INFO, () -> "catchError called with thread name " + Thread.currentThread().getName());
       lock.notifyAll();
+      return then(catchErrorFunction);
     }
-    final Function<V, T> catchErrorFunction = onRej -> (T) this;
-    LOGGER.log(Level.INFO, "catchError execution");
-    return then(catchErrorFunction);
   }
 
   /**
@@ -216,15 +216,11 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    */
   public <T> Promise<V> andFinally(Consumer<ValueOrError<T>> onFinally) {
     synchronized (lock) {
-      lock.notifyAll();
-    }
-
-    LOGGER.log(Level.INFO, "andFinally execution");
-    final Function<V, T> catchErrorFunction = onFin -> {
       onFinally.accept((ValueOrError<T>) this.valueOrError);
-      return (T) this;
-    };
-    return (Promise<V>) then(catchErrorFunction);
+      LOGGER.log(Level.INFO, () -> "andFinally called with thread name " + Thread.currentThread().getName());
+      lock.notifyAll();
+      return this;
+    }
   }
 
   protected <T> void fullFillResolve(T value) {
