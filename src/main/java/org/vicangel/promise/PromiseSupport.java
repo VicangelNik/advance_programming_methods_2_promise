@@ -1,8 +1,15 @@
 package org.vicangel.promise;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.vicangel.exceptions.PromiseRejectException;
+
+import static org.vicangel.helpers.ThrowingConsumer.throwingConsumerWrapper;
 
 /**
  * @author Nikiforos Xylogiannopoulos
@@ -118,17 +125,18 @@ public abstract class PromiseSupport {
    * Use allSettled() if you need the final result of every promise in the input iterable.
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all">...</a>
    */
-  public static Promise<List<?>> all(Iterable<Promise<?>> promises) { // TODO
-//    Promise<T> promiseResult = PromiseSupport.resolve(null);
-//    // throw new UnsupportedOperationException("IMPLEMENT ME");
-////    Status allPromiisesStatus = PENDING;
-//
-//    final Iterator<Promise<?>> promiseIterator = promises.iterator();
-//    while (promiseIterator.hasNext()) {
-//      promiseResult.then((promise) -> promiseIterator.next());
-//    }
-//    return (Promise<T>) promiseResult;
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+  public static Promise<List<?>> all(Iterable<Promise<?>> promises) {
+
+    final List<Object> list = Collections.synchronizedList(new ArrayList<>());
+
+    final Iterator<Promise<?>> promiseIterator = promises.iterator();
+    try {
+      promiseIterator.forEachRemaining(throwingConsumerWrapper(promise -> list.add(PromiseSupport.resolve(promise).get())));
+    } catch (PromiseRejectException e) {
+      list.clear();
+      list.add(e.getMessage());
+    }
+    return PromiseSupport.resolve(list);
   }
 
   /**
