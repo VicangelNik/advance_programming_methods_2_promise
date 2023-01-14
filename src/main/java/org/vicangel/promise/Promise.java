@@ -260,4 +260,18 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
     }
     throw new ExecutionException(this.valueOrError.error());
   }
+
+  public ValueOrError<V> getValueOrError() {
+    synchronized (lock) {
+      while (this.status == PENDING) {
+        try {
+          lock.wait();
+        } catch (InterruptedException e) {
+          LOGGER.warning(e.getMessage());
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+    return this.valueOrError;
+  }
 }

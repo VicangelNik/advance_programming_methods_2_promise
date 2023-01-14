@@ -225,7 +225,7 @@ public abstract class PromiseSupport {
    * <p>
    * If the iterable passed is non-empty but contains no pending promises, the returned promise is still asynchronously (instead of synchronously) fulfilled.
    *
-   * @implNote The Promise.allSettled() method is one of the promise concurrency methods.
+   * @apiNote The Promise.allSettled() method is one of the promise concurrency methods.
    * Promise.allSettled() is typically used when you have multiple asynchronous tasks that are not dependent on one another
    * to complete successfully, or you'd always like to know the result of each promise.
    * <p>
@@ -234,6 +234,11 @@ public abstract class PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled">...</a>
    */
   public static Promise<List<ValueOrError<?>>> allSettled(List<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+
+    final List<ValueOrError<?>> list = Collections.synchronizedList(new ArrayList<>());
+
+    final Iterator<Promise<?>> promiseIterator = promises.iterator();
+    promiseIterator.forEachRemaining(promise -> list.add(PromiseSupport.resolve(promise).getValueOrError()));
+    return PromiseSupport.resolve(list);
   }
 }

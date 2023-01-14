@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 import org.vicangel.promise.Promise;
 import org.vicangel.promise.PromiseExecutor;
 import org.vicangel.promise.PromiseSupport;
+import org.vicangel.promise.ValueOrError;
 
 /**
  * @author Nikiforos Xylogiannopoulos
@@ -41,7 +42,9 @@ public class Main {
 
     //  Promise<?> promise = PromiseSupport.resolve("Resolved").andFinally(x-> System.out.println("Experiment completed"));
 
-     testPromiseSupportAll();
+   // testPromiseSupportAll();
+
+    testPromiseSupportAllSettle();
 
     //promise.resolve("Resolved").then(String::length);
     // promise.resolve("Resolved").then(String::length).andFinally(valueOrError -> System.out.println(10+ (Integer)valueOrError.value()));
@@ -65,7 +68,17 @@ public class Main {
     Promise<Integer> promise2 = PromiseSupport.resolve(20);
     Promise<Integer> promise3 = PromiseSupport.resolve(100);
     Promise<Void> promise4 = PromiseSupport.reject(new IllegalArgumentException("700"));
-     Promise<List<?>> promiseResult = PromiseSupport.all(List.of(promise, promise1, promise4, promise2, promise3));
-      System.out.println(promiseResult.get());
+    Promise<List<?>> promiseResult = PromiseSupport.all(List.of(promise, promise1, promise4, promise2, promise3));
+    System.out.println(promiseResult.get());
+  }
+
+  private static void testPromiseSupportAllSettle() throws ExecutionException {
+    Promise<Integer> promise = PromiseSupport.resolve(5);
+    Promise<Integer> promise1 = PromiseSupport.resolve(10);
+    Promise<Integer> promise2 = PromiseSupport.resolve(20);
+    Promise<Integer> promise3 = PromiseSupport.resolve(100);
+    Promise<Void> promise4 = PromiseSupport.reject(new IllegalArgumentException("700"));
+    Promise<List<ValueOrError<?>>> promiseResult = PromiseSupport.allSettled(List.of(promise, promise1, promise4, promise2, promise3));
+    System.out.println(promiseResult.get());
   }
 }
