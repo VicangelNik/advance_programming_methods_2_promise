@@ -1,10 +1,11 @@
 package org.vicangel.promise;
 
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.vicangel.exceptions.PromiseRejectException;
 
 import static org.vicangel.promise.Status.FULFILLED;
 import static org.vicangel.promise.Status.PENDING;
@@ -55,7 +56,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
     executor.execute(this::fullFillResolve, this::fullFillReject);
   }
 
-  private Promise(final Object lock) {
+  private Promise(final Object lock, boolean zf) {
     this.lock = lock;
   }
 
@@ -111,7 +112,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
   @Override
   public <T> Promise<T> then(Function<V, T> onResolve, Consumer<Throwable> onReject) {
     synchronized (lock) {
-      final Promise<T> dest = new Promise<>(lock);
+      final Promise<T> dest = new Promise<>(lock, true);
       new PromiseTransformActionThread<>(this, dest, onResolve, onReject);
       LOGGER.log(Level.INFO, () -> "then(Function<V, T> onResolve, Consumer<Throwable> onReject) called with thread name " + Thread.currentThread().getName());
       lock.notifyAll();
@@ -122,7 +123,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
   @Override
   public <T> Promise<T> then(Function<V, T> onResolve) {
     synchronized (lock) {
-      final Promise<T> dest = new Promise<>(lock);
+      final Promise<T> dest = new Promise<>(lock, true);
       new PromiseTransformActionThread<>(this, dest, onResolve);
       LOGGER.log(Level.INFO, () -> "then(Function<V, T> onResolve) called with thread name " + Thread.currentThread().getName());
       lock.notifyAll();
@@ -156,9 +157,10 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    */
   public <T> Promise<?> catchError(final Consumer<Throwable> onRejected) {
     synchronized (lock) {
-      onRejected.accept(this.valueOrError.error());
-      final Function<V, T> catchErrorFunction = onRej -> (T) this;
       LOGGER.log(Level.INFO, () -> "catchError called with thread name " + Thread.currentThread().getName());
+      onRejected.accept(this.getValueOrError().error());
+      final Function<V, T> catchErrorFunction = onRej -> (T) this;
+
       lock.notifyAll();
       return then(catchErrorFunction);
     }
@@ -216,7 +218,7 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
    */
   public <T> Promise<V> andFinally(Consumer<ValueOrError<T>> onFinally) {
     synchronized (lock) {
-      onFinally.accept((ValueOrError<T>) this.valueOrError);
+      onFinally.accept((ValueOrError<T>) this.getValueOrError());
       LOGGER.log(Level.INFO, () -> "andFinally called with thread name " + Thread.currentThread().getName());
       lock.notifyAll();
       return this;
@@ -225,25 +227,29 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
 
   protected <T> void fullFillResolve(T value) {
     synchronized (lock) {
-      this.valueOrError = (ValueOrError<V>) ValueOrError.Value.of(value);
-      this.status = FULFILLED;
-      LOGGER.log(Level.INFO, () -> "fullFillResolve called with value: " + value + " and thread name "
-                                   + Thread.currentThread().getName());
-      lock.notifyAll();
+      if (status != REJECTED) {
+        this.valueOrError = (ValueOrError<V>) ValueOrError.Value.of(value);
+        this.status = FULFILLED;
+        LOGGER.log(Level.INFO, () -> "fullFillResolve called with value: " + value + " and thread name "
+                                     + Thread.currentThread().getName());
+        lock.notifyAll();
+      }
     }
   }
 
   protected void fullFillReject(Throwable reason) {
     synchronized (lock) {
-      this.valueOrError = ValueOrError.Error.of(reason);
-      this.status = REJECTED;
-      LOGGER.log(Level.INFO, () -> "fullFillReject called with value: " + reason + " and thread name "
-                                   + Thread.currentThread().getName());
-      lock.notifyAll();
+      if (this.status != FULFILLED) {
+        this.valueOrError = ValueOrError.Error.of(reason);
+        this.status = REJECTED;
+        LOGGER.log(Level.INFO, () -> "fullFillReject called with value: " + reason + " and thread name "
+                                     + Thread.currentThread().getName());
+        lock.notifyAll();
+      }
     }
   }
 
-  public V get() throws ExecutionException {
+  public V get() {
     synchronized (lock) {
       while (this.status == PENDING) {
         try {
@@ -258,7 +264,8 @@ public class Promise<V> extends PromiseSupport implements Thenable<V> {
     if (this.status == FULFILLED) {
       return this.valueOrError.value();
     }
-    throw new ExecutionException(this.valueOrError.error());
+    System.out.println("Throwing execution exception while getting value");
+    throw new PromiseRejectException(this.valueOrError.error());
   }
 
   public ValueOrError<V> getValueOrError() {

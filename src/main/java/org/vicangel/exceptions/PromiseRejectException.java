@@ -3,13 +3,16 @@ package org.vicangel.exceptions;
 /**
  * @author Nikiforos Xylogiannopoulos
  */
-public class PromiseRejectException extends RuntimeException{
+public class PromiseRejectException extends RuntimeException {
 
-  public PromiseRejectException() {
-    super();
+  public PromiseRejectException(Throwable cause) {
+    super(cause);
   }
 
-  public PromiseRejectException(final String message) {
-    super(message);
+  public static Throwable getInitCause(Throwable cause) {
+    if (cause.getCause() != null) {
+      return getInitCause(cause.getCause());
+    }
+    return cause;
   }
 }

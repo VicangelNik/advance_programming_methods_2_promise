@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.vicangel.exceptions.PromiseRejectException;
-
+import static org.vicangel.exceptions.PromiseRejectException.getInitCause;
 import static org.vicangel.helpers.ThrowingConsumer.throwingConsumerWrapper;
 
 /**
@@ -64,6 +63,8 @@ public abstract class PromiseSupport {
     if (value instanceof Promise) {
       LOGGER.log(Level.INFO, "static resolve called, immediately return promise");
       return (Promise<T>) value;
+    } else if (value instanceof List && ((List<?>) value).size() == 1 && ((List<?>) value).get(0) instanceof Exception) {
+      return (Promise<T>) PromiseSupport.reject((Throwable) ((List<?>) value).get(0));
     }
     return new Promise<>((res, rej) -> {
       try {
@@ -132,9 +133,9 @@ public abstract class PromiseSupport {
     final Iterator<Promise<?>> promiseIterator = promises.iterator();
     try {
       promiseIterator.forEachRemaining(throwingConsumerWrapper(promise -> list.add(PromiseSupport.resolve(promise).get())));
-    } catch (PromiseRejectException e) {
+    } catch (Exception e) {
       list.clear();
-      list.add(e.getMessage());
+      list.add(getInitCause(e));
     }
     return PromiseSupport.resolve(list);
   }
@@ -198,7 +199,13 @@ public abstract class PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any">...</a>
    */
   public static Promise<?> any(List<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+    final Iterator<Promise<?>> promiseIterator = promises.iterator();
+
+    while (promiseIterator.hasNext()) {
+
+      return PromiseSupport.resolve(promiseIterator.next().get());
+    }
+    return PromiseSupport.resolve("AggregateError: All promises were rejected");
   }
 
   /**

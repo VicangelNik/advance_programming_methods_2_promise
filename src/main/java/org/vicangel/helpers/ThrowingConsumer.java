@@ -20,7 +20,7 @@ public interface ThrowingConsumer<T, E extends Exception> {
       try {
         throwingConsumer.accept(i);
       } catch (Exception ex) {
-        throw new PromiseRejectException(ex.getMessage());
+        throw new PromiseRejectException(ex);
       }
     };
   }
