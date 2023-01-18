@@ -199,11 +199,12 @@ public abstract class PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any">...</a>
    */
   public static Promise<?> any(List<Promise<?>> promises) {
-    final Iterator<Promise<?>> promiseIterator = promises.iterator();
-
-    while (promiseIterator.hasNext()) {
-
-      return PromiseSupport.resolve(promiseIterator.next().get());
+    for (Promise<?> promise : promises) {
+      final var valueOrError = promise.getValueOrError();
+      if (valueOrError.hasError()) {
+        continue;
+      }
+      return promise;
     }
     return PromiseSupport.resolve("AggregateError: All promises were rejected");
   }
