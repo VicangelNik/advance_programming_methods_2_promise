@@ -9,7 +9,7 @@ public class PromiseRejectException extends RuntimeException {
     super(cause);
   }
 
-  public static Throwable getInitCause(Throwable cause) {
+  public static Throwable getInitCause(final Throwable cause) {
     if (cause.getCause() != null) {
       return getInitCause(cause.getCause());
     }

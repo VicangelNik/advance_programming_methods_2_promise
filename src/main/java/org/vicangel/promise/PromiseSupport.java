@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.vicangel.exceptions.PromiseRejectException.getInitCause;
@@ -59,19 +58,19 @@ public abstract class PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/resolve">...</a>
    */
   public static <T> Promise<T> resolve(final T value) {
-    LOGGER.log(Level.INFO, "static resolve called with value: {0}", value);
+    System.out.println("static resolve called with value: " + value);
     if (value instanceof Promise) {
-      LOGGER.log(Level.INFO, "static resolve called, immediately return promise");
+      System.out.println("static resolve called, immediately return promise");
       return (Promise<T>) value;
     } else if (value instanceof List && ((List<?>) value).size() == 1 && ((List<?>) value).get(0) instanceof Exception) {
       return (Promise<T>) PromiseSupport.reject((Throwable) ((List<?>) value).get(0));
     }
     return new Promise<>((res, rej) -> {
       try {
-        LOGGER.log(Level.INFO, "static resolve called - ACCEPT value");
+        System.out.println("static resolve called - ACCEPT value");
         res.accept(value);
       } catch (Exception throwable) {
-        LOGGER.log(Level.INFO, "static resolve called - REJECT value");
+        LOGGER.warning("static resolve called - REJECT value");
         rej.accept(throwable);
       }
     });
@@ -160,7 +159,16 @@ public abstract class PromiseSupport {
    * @see <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race">...</a>
    */
   public static Promise<ValueOrError<?>> race(List<Promise<?>> promises) {
-    throw new UnsupportedOperationException("IMPLEMENT ME");
+    ValueOrError<?> valueOrError = null;
+    while (valueOrError == null) {
+      for (Promise<?> promise : promises) {
+        ValueOrError<?> promiseValueOrError = promise.getValueOrError();
+        if (promiseValueOrError != null) {
+          valueOrError = promiseValueOrError;
+        }
+      }
+    }
+    return PromiseSupport.resolve(valueOrError);
   }
 
   /**
@@ -246,7 +254,7 @@ public abstract class PromiseSupport {
     final List<ValueOrError<?>> list = Collections.synchronizedList(new ArrayList<>());
 
     final Iterator<Promise<?>> promiseIterator = promises.iterator();
-    promiseIterator.forEachRemaining(promise -> list.add(PromiseSupport.resolve(promise).getValueOrError()));
+    promiseIterator.forEachRemaining(promise -> list.add(promise.getValueOrError()));
     return PromiseSupport.resolve(list);
   }
 }

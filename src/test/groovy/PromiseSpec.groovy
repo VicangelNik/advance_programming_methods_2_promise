@@ -41,11 +41,14 @@ class PromiseSpec extends Specification {
     String done = "DONE"
     Throwable error = new RuntimeException("ERROR")
 
-    when:
-    new Promise((Consumer<String> resolve, Consumer<Throwable> reject) -> {
+    // for a strange reason enters the private constructor if not assigned as variable
+    PromiseExecutor promiseExecutor = (Consumer<String> resolve, Consumer<Throwable> reject) -> {
       resolve.accept(done)
       reject.accept(error)
-    }).andFinally((ValueOrError<String> valueOrError) -> {
+    }
+
+    when:
+    new Promise(promiseExecutor).andFinally((ValueOrError<String> valueOrError) -> {
       result.set(valueOrError)
     })
 
@@ -59,11 +62,14 @@ class PromiseSpec extends Specification {
     String done = "DONE"
     Throwable error = new RuntimeException("ERROR")
 
-    when:
-    new Promise((Consumer<String> resolve, Consumer<Throwable> reject) -> {
+    // for a strange reason enters the private constructor if not assigned as variable
+    PromiseExecutor promiseExecutor = (Consumer<String> resolve, Consumer<Throwable> reject) -> {
       reject.accept(error)
       resolve.accept(done)
-    }).andFinally((ValueOrError<String> valueOrError) -> {
+    }
+
+    when:
+    new Promise(promiseExecutor).andFinally((ValueOrError<String> valueOrError) -> {
       result.set(valueOrError)
     })
 
